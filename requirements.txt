@@ -1,0 +1,22 @@
+# SSL-ECG Requirements
+# For TensorFlow 1.14 (original version) - requires Python 3.6-3.7
+
+tensorflow==1.14.0
+tensorboard==1.14.0
+scikit-learn==0.22.2
+numpy==1.18.4
+tqdm==4.36.1
+pandas==0.25.1
+mlxtend==0.17.0
+
+# Additional dependencies for signal processing
+scipy==1.4.1
+biosppy==0.7.0
+opencv-python==4.2.0.34
+
+# For testing
+pytest==5.4.3
+pytest-cov==2.10.0
+
+# For model persistence
+pickle-mixin==1.0.2

@@ -1,14 +1,26 @@
+"""
+utils.py - Utility functions for SSL-ECG
+
+This module provides utility functions for:
+- Data batching and transformation
+- Feature extraction and normalization
+- Loss calculation and metrics
+- Result visualization and storage
+"""
+
 import os
 import tensorflow as tf
 import numpy as np
 import csv
 from sklearn import metrics
+from sklearn.preprocessing import StandardScaler
 import signal_transformation_task as stt
 from mlxtend.evaluate import confusion_matrix
 import time
 import cv2
 from scipy import signal as scipy_signal
 import matplotlib.pyplot as plt
+import pickle
 
 window_size = 2560
 transform_task = [0, 1, 2, 3, 4, 5, 6]
@@ -269,18 +281,101 @@ def get_train_test_index(data, kf):
 
     return train_index, test_index
 
+def normalize_features(x_train, x_test, scaler_path=None):
+    """
+    Normalize features using training set statistics (StandardScaler).
+
+    This ensures features have zero mean and unit variance, which improves
+    model training and prevents features with larger scales from dominating.
+
+    Args:
+        x_train (numpy.ndarray): Training features (N_train, feature_dim)
+        x_test (numpy.ndarray): Test features (N_test, feature_dim)
+        scaler_path (str, optional): Path to save the fitted scaler
+
+    Returns:
+        tuple: (x_train_norm, x_test_norm, scaler)
+            - x_train_norm: Normalized training features
+            - x_test_norm: Normalized test features
+            - scaler: Fitted StandardScaler object
+    """
+    scaler = StandardScaler()
+    x_train_norm = scaler.fit_transform(x_train)
+    x_test_norm = scaler.transform(x_test)
+
+    if scaler_path is not None:
+        os.makedirs(os.path.dirname(scaler_path), exist_ok=True)
+        with open(scaler_path, 'wb') as f:
+            pickle.dump(scaler, f)
+        print(f"✓ Feature scaler saved to: {scaler_path}")
+
+    print(f"✓ Features normalized - Train: {x_train_norm.shape}, Test: {x_test_norm.shape}")
+    print(f"  Train mean: {np.mean(x_train_norm, axis=0)[:5]}... (showing first 5)")
+    print(f"  Train std:  {np.std(x_train_norm, axis=0)[:5]}... (showing first 5)")
+
+    return x_train_norm, x_test_norm, scaler
+
+
 def extract_feature(x_original, featureset_size, batch_super, input_tensor, isTrain, drop_out, extract_layer, sess):
-    feature_set = np.zeros((1, featureset_size), dtype = int) 
+    """
+    Extract features from ECG signals using the trained self-supervised model.
+
+    This version fixes the inefficient modulo indexing that caused duplicate processing.
+
+    Args:
+        x_original (numpy.ndarray): Original ECG signals (N_samples, signal_length)
+        featureset_size (int): Dimension of the feature vector
+        batch_super (int): Batch size for processing
+        input_tensor: TensorFlow input tensor
+        isTrain: TensorFlow training flag placeholder
+        drop_out: TensorFlow dropout placeholder
+        extract_layer: TensorFlow layer to extract features from
+        sess: TensorFlow session
+
+    Returns:
+        numpy.ndarray: Extracted features (N_samples, featureset_size)
+    """
     length = np.shape(x_original)[0]
-    steps = length //batch_super +1  
-    for j in range(steps):
-        signal_batch = x_original[np.mod(np.arange(j*batch_super,(j+1)*batch_super), length)]
-        signal_batch = signal_batch.reshape(np.shape(signal_batch)[0], np.shape(signal_batch)[1], 1)
-        fetched = sess.run(extract_layer, {input_tensor: signal_batch, isTrain: False, drop_out: 0.0})
-        feature_set = np.vstack((feature_set, fetched))
-         
-    x_feature = feature_set[1:length+1] ## resizing to the original signal
-    
+    feature_list = []
+
+    # Process in batches without duplicates
+    for start_idx in range(0, length, batch_super):
+        end_idx = min(start_idx + batch_super, length)
+        signal_batch = x_original[start_idx:end_idx]
+
+        # Pad last batch if needed
+        if signal_batch.shape[0] < batch_super:
+            pad_size = batch_super - signal_batch.shape[0]
+            signal_batch = np.vstack([
+                signal_batch,
+                np.zeros((pad_size, signal_batch.shape[1]))
+            ])
+            is_padded = True
+        else:
+            is_padded = False
+
+        # Reshape for model input
+        signal_batch = signal_batch.reshape(signal_batch.shape[0], signal_batch.shape[1], 1)
+
+        # Extract features
+        fetched = sess.run(extract_layer, {
+            input_tensor: signal_batch,
+            isTrain: False,
+            drop_out: 0.0
+        })
+
+        # Remove padding from features if needed
+        if is_padded:
+            fetched = fetched[:-pad_size]
+
+        feature_list.append(fetched)
+
+    # Concatenate all features
+    x_feature = np.vstack(feature_list)
+
+    assert x_feature.shape[0] == length, \
+        f"Feature extraction error: got {x_feature.shape[0]} features, expected {length}"
+
     return x_feature
 
 

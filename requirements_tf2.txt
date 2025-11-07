@@ -1,0 +1,27 @@
+# SSL-ECG Requirements
+# For TensorFlow 2.x (future migration) - supports Python 3.8-3.11
+
+tensorflow==2.15.0
+tensorboard==2.15.1
+scikit-learn==1.3.2
+numpy==1.24.3
+tqdm==4.66.1
+pandas==2.1.4
+mlxtend==0.23.0
+
+# Additional dependencies for signal processing
+scipy==1.11.4
+biosppy==1.0.0  # Check compatibility
+opencv-python==4.8.1.78
+
+# For testing
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# For visualization and logging (optional but recommended)
+matplotlib==3.8.2
+seaborn==0.13.0
+wandb==0.16.1  # For experiment tracking
+
+# Note: This file is for future TensorFlow 2.x migration
+# The current codebase requires TensorFlow 1.14 (see requirements.txt)
