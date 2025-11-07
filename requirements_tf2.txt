@@ -1,6 +1,8 @@
-# SSL-ECG Requirements
-# For TensorFlow 2.x (future migration) - supports Python 3.8-3.11
+# SSL-ECG Requirements - TensorFlow 2.x Version
+# For Python 3.8-3.11
+# Branch: tf2-migration
 
+# Core ML libraries
 tensorflow==2.15.0
 tensorboard==2.15.1
 scikit-learn==1.3.2
@@ -9,19 +11,25 @@ tqdm==4.66.1
 pandas==2.1.4
 mlxtend==0.23.0
 
-# Additional dependencies for signal processing
+# Signal processing
 scipy==1.11.4
-biosppy==1.0.0  # Check compatibility
 opencv-python==4.8.1.78
 
-# For testing
+# Optional but recommended for biosignal processing
+# biosppy==1.0.0  # Uncomment if needed, check TF2 compatibility
+
+# Testing
 pytest==7.4.3
 pytest-cov==4.1.0
 
-# For visualization and logging (optional but recommended)
+# Visualization and logging (optional but recommended)
 matplotlib==3.8.2
 seaborn==0.13.0
-wandb==0.16.1  # For experiment tracking
 
-# Note: This file is for future TensorFlow 2.x migration
-# The current codebase requires TensorFlow 1.14 (see requirements.txt)
+# Experiment tracking (optional)
+# wandb==0.16.1  # Uncomment if using Weights & Biases
+
+# Installation:
+#   conda create -n ssl-ecg-tf2 python=3.10
+#   conda activate ssl-ecg-tf2
+#   pip install -r requirements_tf2.txt
