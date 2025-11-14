@@ -81,6 +81,10 @@ parser.add_argument('--save_model', type=lambda x: str(x).lower() == 'true', def
 parser.add_argument('--model_name', type=str, default=None,
                     help='Custom model name (default: auto-generated)')
 
+# Pre-training / Transfer learning
+parser.add_argument('--pretrained_model', type=str, default=None,
+                    help='Path to pre-trained model (for transfer learning)')
+
 # Feature processing
 parser.add_argument('--normalize_features', type=lambda x: str(x).lower() == 'true', default=True,
                     help='Normalize features before downstream tasks')
@@ -159,6 +163,9 @@ if not args.subject_wise:
 config = vars(args)
 config['tensorflow_version'] = tf.__version__
 config['timestamp'] = datetime.now().isoformat()
+config['using_pretrained_model'] = args.pretrained_model is not None
+if args.pretrained_model:
+    config['pretrained_model_path'] = args.pretrained_model
 with open(os.path.join(model_output_dir, 'config.json'), 'w') as f:
     json.dump(config, f, indent=2)
 
@@ -277,7 +284,10 @@ with open(os.path.join(model_output_dir, 'subject_split.json'), 'w') as f:
 
 # Build model
 if args.verbose >= 1:
-    print("Building self-supervised model...")
+    if args.pretrained_model:
+        print(f"Loading pre-trained model from: {args.pretrained_model}")
+    else:
+        print("Building self-supervised model from scratch...")
 
 ssl_model = model.build_ssl_model(
     input_shape=(window_size, 1),
@@ -285,6 +295,25 @@ ssl_model = model.build_ssl_model(
     hidden_nodes=128,
     l2_reg=L2
 )
+
+# Load pre-trained weights if provided (transfer learning)
+if args.pretrained_model:
+    if not os.path.exists(args.pretrained_model):
+        raise FileNotFoundError(f"Pre-trained model not found: {args.pretrained_model}")
+
+    if args.verbose >= 1:
+        print("Loading pre-trained weights...")
+
+    try:
+        # Try loading as SavedModel format
+        pretrained = tf.keras.models.load_model(args.pretrained_model)
+        # Transfer weights
+        ssl_model.set_weights(pretrained.get_weights())
+        if args.verbose >= 1:
+            print("✓ Pre-trained weights loaded successfully!")
+            print("  Model will be fine-tuned on maternal ECG data")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load pre-trained model: {e}")
 
 # Save model architecture
 with open(os.path.join(model_output_dir, 'model_architecture.json'), 'w') as f:
