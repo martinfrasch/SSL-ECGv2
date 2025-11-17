@@ -76,15 +76,16 @@ def permute(signal, pieces):
 ## timewarping
     
 def time_warp(signal, sampling_freq, pieces, stretch_factor, squeeze_factor):
-    """ 
+    """
     signal time warping: stretch and squeeze some part of the signal
     bellow is the best limit of the parameters
     slices should be factor of time_length
     stretch_factor = 1.2
     squeeze_factor = 1.2
-    pieces = 6, 2, 
+    pieces = 6, 2,
     sampling_freq = 256 """
-    total_time = np.shape(signal)[0]//sampling_freq
+    original_length = np.shape(signal)[0]
+    total_time = original_length//sampling_freq
     segment_time = total_time/pieces
     sequence = list(range(0,pieces))
     stretch = np.random.choice(sequence, math.ceil(len(sequence)/2), replace = False)
@@ -109,6 +110,18 @@ def time_warp(signal, sampling_freq, pieces, stretch_factor, squeeze_factor):
                 initialize = False
             else:
                 time_warped = np.vstack((time_warped, new_signal))
+
+    # FIX: Ensure output is exactly the same length as input
+    # This prevents 2561 sample errors when expected length is 2560
+    current_length = len(time_warped)
+    if current_length > original_length:
+        # Trim excess samples from the end
+        time_warped = time_warped[:original_length]
+    elif current_length < original_length:
+        # Pad with zeros if somehow shorter (unlikely but safe)
+        padding = np.zeros((original_length - current_length, 1))
+        time_warped = np.vstack((time_warped, padding))
+
     return time_warped
    
 
